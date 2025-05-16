@@ -40,9 +40,11 @@ class Report(Base):
     
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
+    thread_id = Column(String(50), nullable=False)
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     analysis = Column(Text)
+    status = Column(String(20), default="completed")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

@@ -246,13 +246,18 @@ def reporter_node(state: State):
     """Reporter node that write a final report."""
     logger.info("Reporter write final report")
     current_plan = state.get("current_plan")
+    thread_id = state.get("thread_id")
+    user_id = state.get("user_id")
+    
+    logger.info(f"Generating report for user_id: {user_id}, thread_id: {thread_id}")
+    
     input_ = {
         "messages": [
             HumanMessage(
                 f"# Research Requirements\n\n## Task\n\n{current_plan.title}\n\n## Description\n\n{current_plan.thought}"
             )
         ],
-        "locale": state.get("locale", "en-US"),
+        "locale": state.get("locale", "zh-CN"),  # 默认使用中文
     }
     invoke_messages = apply_prompt_template("reporter", input_)
     observations = state.get("observations", [])
@@ -275,7 +280,40 @@ def reporter_node(state: State):
     logger.debug(f"Current invoke messages: {invoke_messages}")
     response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(invoke_messages)
     response_content = response.content
-    logger.info(f"reporter response: {response_content}")
+    logger.info(f"Reporter generated response with length: {len(response_content)}")
+    
+    # Save report to database if user_id is provided
+    if user_id and thread_id:
+        try:
+            from src.server.database import SessionLocal
+            from src.server.models import Report
+            from datetime import datetime
+            import json
+            
+            db = SessionLocal()
+            # 将分析过程和研报保存到数据库
+            report = Report(
+                user_id=user_id,
+                thread_id=thread_id,
+                title=current_plan.title if hasattr(current_plan, 'title') else "Research Report",
+                content=response_content,
+                analysis=json.dumps({
+                    'observations': observations,
+                    'thought': current_plan.thought if hasattr(current_plan, 'thought') else "",
+                    'steps': [step.dict() for step in current_plan.steps] if hasattr(current_plan, 'steps') else []
+                }, ensure_ascii=False),  # 确保中文正确保存
+                status="completed",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(report)
+            db.commit()
+            logger.info(f"Successfully saved report to database for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to save report to database: {str(e)}", exc_info=True)
+            # 继续执行，不要因为保存失败而中断整个流程
+        finally:
+            db.close()
 
     return {"final_report": response_content}
 

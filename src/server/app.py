@@ -109,6 +109,28 @@ async def chat_stream(request: ChatRequest):
     else:
         logger.warning(f"Skipping database save - user_id: {request.user_id}, has_messages: {bool(request.messages)}")
     
+    input_ = {
+        "messages": request.model_dump()["messages"],
+        "plan_iterations": 0,
+        "final_report": "",
+        "current_plan": None,
+        "observations": [],
+        "auto_accepted_plan": request.auto_accepted_plan,
+        "enable_background_investigation": request.enable_background_investigation,
+        "user_id": request.user_id,  # 添加用户ID
+        "thread_id": thread_id,  # 添加线程ID
+    }
+    
+    if not request.auto_accepted_plan and request.interrupt_feedback:
+        resume_msg = f"[{request.interrupt_feedback}]"
+        # add the last message to the resume message
+        if request.messages:
+            last_message = request.messages[-1]
+            content = (last_message.content if isinstance(last_message.content, str) 
+                      else last_message.content[0].text)
+            resume_msg += f" {content}"
+        input_ = Command(resume=resume_msg)
+    
     return StreamingResponse(
         _astream_workflow_generator(
             request.model_dump()["messages"],
@@ -153,21 +175,38 @@ async def _astream_workflow_generator(
         "observations": [],
         "auto_accepted_plan": auto_accepted_plan,
         "enable_background_investigation": enable_background_investigation,
+        "user_id": user_id,  # 添加用户ID到状态中
+        "thread_id": thread_id,  # 添加线程ID到状态中
+        "locale": "zh-CN"  # 设置默认语言为中文
     }
+    
     if not auto_accepted_plan and interrupt_feedback:
         resume_msg = f"[{interrupt_feedback}]"
         # add the last message to the resume message
         if messages:
-            resume_msg += f" {messages[-1]['content']}"
+            last_message = messages[-1]
+            # 处理不同类型的消息内容
+            if isinstance(last_message, dict):
+                content = last_message.get('content', '')
+                if isinstance(content, list) and content:
+                    content = content[0].get('text', '')
+            else:
+                content = (last_message.content if isinstance(last_message.content, str) 
+                          else last_message.content[0].text)
+            resume_msg += f" {content}"
         input_ = Command(resume=resume_msg)
+    
+    config = {
+        "thread_id": thread_id,
+        "max_plan_iterations": max_plan_iterations,
+        "max_step_num": max_step_num,
+        "mcp_settings": mcp_settings,
+        "user_id": user_id,  # 添加用户ID到配置中
+    }
+    
     async for agent, _, event_data in graph.astream(
         input_,
-        config={
-            "thread_id": thread_id,
-            "max_plan_iterations": max_plan_iterations,
-            "max_step_num": max_step_num,
-            "mcp_settings": mcp_settings,
-        },
+        config=config,
         stream_mode=["messages", "updates"],
         subgraphs=True,
     ):
