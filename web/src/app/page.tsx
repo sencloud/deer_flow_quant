@@ -120,16 +120,16 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white py-12 sm:py-16">
+      <footer className="border-t border-gray-800 bg-gray-900 py-12 sm:py-16">
         <div className="container mx-auto px-4 sm:px-8">
-          <div className="mb-8 sm:mb-12 text-center text-xl sm:text-2xl font-light tracking-[0.2em]">🦌 Deep Quant</div>
+          <div className="mb-8 sm:mb-12 text-center text-xl sm:text-2xl font-light tracking-[0.2em] text-white">🦌 Deep Quant</div>
           <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-12">
-            <a href="#" className="text-sm font-light tracking-wider text-gray-600 hover:text-black">关于我们</a>
-            <a href="#" className="text-sm font-light tracking-wider text-gray-600 hover:text-black">使用条款</a>
-            <a href="#" className="text-sm font-light tracking-wider text-gray-600 hover:text-black">隐私政策</a>
-            <a href="#" className="text-sm font-light tracking-wider text-gray-600 hover:text-black">联系我们</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">关于我们</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">使用条款</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">隐私政策</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">联系我们</a>
           </div>
-          <p className="text-center text-sm font-light tracking-wider text-gray-400">
+          <p className="text-center text-sm font-light tracking-wider text-gray-500">
             &copy; {new Date().getFullYear()} Deep Quant. All rights reserved.
           </p>
         </div>

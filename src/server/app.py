@@ -33,6 +33,7 @@ from src.server.mcp_request import MCPServerMetadataRequest, MCPServerMetadataRe
 from src.server.mcp_utils import load_mcp_tools
 from src.tools import VolcengineTTS
 from .routes import auth
+from .routes import chat  # 添加chat路由导入
 from .database import SessionLocal, get_db
 from .models import Chat, Report
 
@@ -57,6 +58,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(chat.router, prefix="/api", tags=["chat"])  # 修改前缀为/api
 
 graph = build_graph_with_memory()
 

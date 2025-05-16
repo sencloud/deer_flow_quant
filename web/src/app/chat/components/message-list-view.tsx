@@ -130,6 +130,7 @@ function MessageListItem({
   if (message) {
     if (
       message.role === "user" ||
+      message.role === "assistant" ||
       message.agent === "coordinator" ||
       message.agent === "planner" ||
       message.agent === "podcast" ||
@@ -215,9 +216,8 @@ function MessageBubble({
     <div
       className={cn(
         `flex w-fit max-w-[85%] flex-col rounded-2xl px-4 py-3 shadow`,
-        message.role === "user" &&
-          "text-primary-foreground bg-brand rounded-ee-none",
-        message.role === "assistant" && "bg-card rounded-es-none",
+        message.role === "user" && "text-primary-foreground bg-brand rounded-ee-none",
+        message.role === "assistant" && "bg-muted rounded-es-none",
         className,
       )}
     >

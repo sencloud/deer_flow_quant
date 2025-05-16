@@ -3,7 +3,10 @@
 
 import { motion } from "framer-motion";
 import { FastForward, Play } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
+import { toast } from 'sonner';
+import { resolveServiceURL } from '~/core/api/resolve-service-url';
+import { nanoid } from 'nanoid';
 
 import { RainbowText } from "~/components/deer-flow/rainbow-text";
 import { Button } from "~/components/ui/button";
@@ -26,7 +29,13 @@ import { InputBox } from "./input-box";
 import { MessageListView } from "./message-list-view";
 import { Welcome } from "./welcome";
 
-export function MessagesBlock({ className }: { className?: string }) {
+export function MessagesBlock({
+  className,
+  selectedChatId,
+}: {
+  className?: string;
+  selectedChatId?: string | null;
+}) {
   const messageIds = useMessageIds();
   const messageCount = messageIds.length;
   const responding = useStore((state) => state.responding);
@@ -35,6 +44,62 @@ export function MessagesBlock({ className }: { className?: string }) {
   const [replayStarted, setReplayStarted] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [feedback, setFeedback] = useState<{ option: Option } | null>(null);
+
+  // 加载选中的聊天记录
+  useEffect(() => {
+    if (selectedChatId) {
+      const loadSelectedChat = async () => {
+        const token = localStorage.getItem("auth_token");
+        const userId = useStore.getState().userId;
+        if (!token || !userId) return;
+        
+        try {
+          const response = await fetch(resolveServiceURL(`reports/thread/${selectedChatId}?user_id=${userId}`), {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (!response.ok) {
+            throw new Error('Failed to load chat history');
+          }
+          const report = await response.json();
+          console.log('Received report:', report); // 添加日志
+          
+          // 转换消息格式
+          if (report.messages && Array.isArray(report.messages)) {
+            const formattedMessages = report.messages.map((msg: any) => ({
+              id: msg.id || nanoid(), // 确保每条消息都有唯一ID
+              threadId: selectedChatId,
+              role: msg.role || 'assistant', // 如果没有role字段，默认为assistant
+              agent: msg.agent || 'assistant', // 添加agent字段
+              content: msg.content || '',
+              contentChunks: [msg.content || ''],
+              isStreaming: false,
+              created_at: msg.created_at,
+              finishReason: msg.finish_reason || null,
+              toolCalls: msg.tool_calls || [],
+              toolCallResults: msg.tool_call_results || []
+            }));
+            
+            console.log('Formatted messages:', formattedMessages); // 添加日志
+            
+            // 清除现有消息
+            useStore.setState({ messageIds: [], messages: new Map() });
+            // 更新新消息
+            useStore.getState().updateMessages(formattedMessages);
+          }
+        } catch (error) {
+          console.error("Failed to load chat history:", error);
+          toast.error("Failed to load chat history");
+        }
+      };
+      loadSelectedChat();
+    } else {
+      // 如果没有选中的聊天，清空消息
+      useStore.setState({ messageIds: [], messages: new Map() });
+    }
+  }, [selectedChatId]);
+
   const handleSend = useCallback(
     async (message: string, options?: { interruptFeedback?: string }) => {
       const abortController = new AbortController();
@@ -45,6 +110,7 @@ export function MessagesBlock({ className }: { className?: string }) {
           {
             interruptFeedback:
               options?.interruptFeedback ?? feedback?.option.value,
+            chatId: selectedChatId,  // 添加聊天ID
           },
           {
             abortSignal: abortController.signal,
@@ -52,30 +118,36 @@ export function MessagesBlock({ className }: { className?: string }) {
         );
       } catch {}
     },
-    [feedback],
+    [feedback, selectedChatId],
   );
+
   const handleCancel = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
   }, []);
+
   const handleFeedback = useCallback(
     (feedback: { option: Option }) => {
       setFeedback(feedback);
     },
     [setFeedback],
   );
+
   const handleRemoveFeedback = useCallback(() => {
     setFeedback(null);
   }, [setFeedback]);
+
   const handleStartReplay = useCallback(() => {
     setReplayStarted(true);
     void sendMessage();
   }, [setReplayStarted]);
+
   const [fastForwarding, setFastForwarding] = useState(false);
   const handleFastForwardReplay = useCallback(() => {
     setFastForwarding(!fastForwarding);
     fastForwardReplay(!fastForwarding);
   }, [fastForwarding]);
+
   return (
     <div className={cn("flex h-full flex-col overflow-hidden", className)}>
       <MessageListView
@@ -122,67 +194,46 @@ export function MessagesBlock({ className }: { className?: string }) {
                 !replayStarted && "translate-y-[-40vh]",
               )}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-grow">
-                  <CardHeader className="p-3 sm:p-6">
-                    <CardTitle className="text-base sm:text-lg">
-                      <RainbowText animated={responding}>
-                        {responding ? "正在回放" : `${replayTitle}`}
-                      </RainbowText>
-                    </CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">
-                      <RainbowText animated={responding}>
-                        {responding
-                          ? "Deep Quant 正在回放对话..."
-                          : replayStarted
-                            ? "回放已停止。"
-                            : `您现在处于回放模式。点击右侧"播放"按钮开始。`}
-                      </RainbowText>
-                    </CardDescription>
-                  </CardHeader>
-                </div>
-                {!replayHasError && (
-                  <div className="pr-2 sm:pr-4">
-                    {responding && (
-                      <Button
-                        className={cn(
-                          "text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-10",
-                          fastForwarding && "animate-pulse"
-                        )}
-                        variant={fastForwarding ? "default" : "outline"}
-                        onClick={handleFastForwardReplay}
-                      >
-                        <FastForward size={14} className="mr-1 sm:mr-2" />
-                        快进
-                      </Button>
-                    )}
-                    {!replayStarted && (
-                      <Button 
-                        className="w-18 sm:w-24 text-xs sm:text-sm h-8 sm:h-10" 
-                        onClick={handleStartReplay}
-                      >
-                        <Play size={14} className="mr-1 sm:mr-2" />
-                        播放
-                      </Button>
-                    )}
-                  </div>
-                )}
+              <div className="flex-grow">
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">
+                    <RainbowText animated={responding}>
+                      {responding ? "正在回放" : `${replayTitle}`}
+                    </RainbowText>
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    <RainbowText animated={responding}>
+                      {responding
+                        ? "Deep Quant 正在回放对话..."
+                        : replayStarted
+                          ? "回放已停止。"
+                          : `您现在处于回放模式。点击右侧"播放"按钮开始。`}
+                    </RainbowText>
+                  </CardDescription>
+                </CardHeader>
+              </div>
+              <div className="flex items-center justify-end gap-2 p-3 sm:p-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleFastForwardReplay}
+                >
+                  <FastForward size={16} />
+                  {fastForwarding ? "正常速度" : "快进"}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleStartReplay}
+                  disabled={replayStarted}
+                >
+                  <Play size={16} />
+                  播放
+                </Button>
               </div>
             </Card>
-            {!replayStarted && env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY && (
-              <div className="text-muted-foreground w-full text-center text-xs px-4 mt-2">
-                * 本站仅用于演示目的。如果您想尝试自己的问题，请{" "}
-                <a
-                  className="underline"
-                  href="https://github.com/bytedance/deer-flow"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  点击这里
-                </a>{" "}
-                克隆到本地运行。
-              </div>
-            )}
           </motion.div>
         </>
       )}

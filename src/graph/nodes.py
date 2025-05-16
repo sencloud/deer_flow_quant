@@ -206,39 +206,56 @@ def coordinator_node(
     """Coordinator node that communicate with customers."""
     logger.info("Coordinator talking.")
     messages = apply_prompt_template("coordinator", state)
-    response = (
-        get_llm_by_type(AGENT_LLM_MAP["coordinator"])
-        .bind_tools([handoff_to_planner])
-        .invoke(messages)
-    )
-    logger.debug(f"Current state messages: {state['messages']}")
-
-    goto = "__end__"
-    locale = state.get("locale", "en-US")  # Default locale if not specified
-
-    if len(response.tool_calls) > 0:
-        goto = "planner"
-        if state.get("enable_background_investigation"):
-            # if the search_before_planning is True, add the web search tool to the planner agent
-            goto = "background_investigator"
-        try:
-            for tool_call in response.tool_calls:
-                if tool_call.get("name", "") != "handoff_to_planner":
-                    continue
-                if tool_locale := tool_call.get("args", {}).get("locale"):
-                    locale = tool_locale
-                    break
-        except Exception as e:
-            logger.error(f"Error processing tool calls: {e}")
-    else:
-        logger.warning(
-            "Coordinator response contains no tool calls. Terminating workflow execution."
+    
+    # 添加重试逻辑
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        response = (
+            get_llm_by_type(AGENT_LLM_MAP["coordinator"])
+            .bind_tools([handoff_to_planner])
+            .invoke(messages)
         )
-        logger.debug(f"Coordinator response: {response}")
+        logger.debug(f"Current state messages: {state['messages']}")
 
+        goto = "__end__"
+        locale = state.get("locale", "en-US")  # Default locale if not specified
+
+        if len(response.tool_calls) > 0:
+            goto = "planner"
+            if state.get("enable_background_investigation"):
+                # if the search_before_planning is True, add the web search tool to the planner agent
+                goto = "background_investigator"
+            try:
+                for tool_call in response.tool_calls:
+                    if tool_call.get("name", "") != "handoff_to_planner":
+                        continue
+                    if tool_locale := tool_call.get("args", {}).get("locale"):
+                        locale = tool_locale
+                        break
+                # 如果成功找到工具调用，直接返回
+                return Command(
+                    update={"locale": locale},
+                    goto=goto,
+                )
+            except Exception as e:
+                logger.error(f"Error processing tool calls: {e}")
+        else:
+            logger.warning(
+                f"Coordinator response contains no tool calls (attempt {retry_count + 1}/{max_retries}). Retrying..."
+            )
+            retry_count += 1
+            # 在重试之前稍作延迟
+            import time
+            time.sleep(1)
+            continue
+    
+    # 如果所有重试都失败了，记录错误并终止
+    logger.error(f"Coordinator failed to generate tool calls after {max_retries} attempts. Terminating workflow execution.")
     return Command(
         update={"locale": locale},
-        goto=goto,
+        goto="__end__",
     )
 
 

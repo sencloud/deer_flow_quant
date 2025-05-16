@@ -25,8 +25,8 @@ export default function ChatPage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* 导航栏 */}
-      <nav className="fixed top-0 z-50 w-full bg-white/80 px-4 sm:px-8 py-4 sm:py-6 backdrop-blur-md">
-        <div className="container mx-auto flex items-center justify-between">
+      <nav className="fixed top-0 z-50 w-full bg-white/80 px-4 py-4 sm:py-6 backdrop-blur-md">
+        <div className="flex items-center justify-between">
           <Link href="/" className="text-xl sm:text-2xl font-light tracking-[0.2em]">🦌 Deep Quant</Link>
           <div className="flex items-center gap-2 sm:gap-6">
             <Suspense>
@@ -38,7 +38,7 @@ export default function ChatPage() {
       </nav>
 
       {/* 主要内容区 */}
-      <main className="flex flex-1 flex-col pt-20 sm:pt-24">
+      <main className="flex flex-1 flex-col pt-14">
         <div className="flex flex-1 overflow-hidden">
           <Main />
         </div>
@@ -47,16 +47,16 @@ export default function ChatPage() {
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
 
       {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white py-6 sm:py-8">
+      <footer className="border-t border-gray-800 bg-gray-900 py-12 sm:py-16">
         <div className="container mx-auto px-4 sm:px-8">
-          <div className="mb-4 sm:mb-6 text-center text-lg sm:text-xl font-light tracking-[0.2em]">Deep Quant</div>
-          <div className="mb-4 flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-12">
-            <a href="#" className="text-xs sm:text-sm font-light tracking-wider text-gray-600 hover:text-black">关于我们</a>
-            <a href="#" className="text-xs sm:text-sm font-light tracking-wider text-gray-600 hover:text-black">使用条款</a>
-            <a href="#" className="text-xs sm:text-sm font-light tracking-wider text-gray-600 hover:text-black">隐私政策</a>
-            <a href="#" className="text-xs sm:text-sm font-light tracking-wider text-gray-600 hover:text-black">联系我们</a>
+          <div className="mb-8 sm:mb-12 text-center text-xl sm:text-2xl font-light tracking-[0.2em] text-white">🦌 Deep Quant</div>
+          <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-12">
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">关于我们</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">使用条款</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">隐私政策</a>
+            <a href="#" className="text-sm font-light tracking-wider text-gray-400 hover:text-white">联系我们</a>
           </div>
-          <p className="text-center text-xs sm:text-sm font-light tracking-wider text-gray-400">
+          <p className="text-center text-sm font-light tracking-wider text-gray-500">
             &copy; {new Date().getFullYear()} Deep Quant. All rights reserved.
           </p>
         </div>

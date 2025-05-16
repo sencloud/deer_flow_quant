@@ -62,8 +62,17 @@ export const useStore = create<{
   updateMessages(messages: Message[]) {
     set((state) => {
       const newMessages = new Map(state.messages);
-      messages.forEach((m) => newMessages.set(m.id, m));
-      return { messages: newMessages };
+      const newMessageIds = [...state.messageIds];
+      messages.forEach((m) => {
+        newMessages.set(m.id, m);
+        if (!newMessageIds.includes(m.id)) {
+          newMessageIds.push(m.id);
+        }
+      });
+      return { 
+        messages: newMessages,
+        messageIds: newMessageIds 
+      };
     });
   },
   openResearch(researchId: string | null) {
@@ -84,8 +93,10 @@ export async function sendMessage(
   content?: string,
   {
     interruptFeedback,
+    chatId,
   }: {
     interruptFeedback?: string;
+    chatId?: string | null;
   } = {},
   options: { abortSignal?: AbortSignal } = {},
 ) {
@@ -102,7 +113,7 @@ export async function sendMessage(
   if (content != null) {
     appendMessage({
       id: nanoid(),
-      threadId: THREAD_ID,
+      threadId: chatId || THREAD_ID,
       role: "user",
       content: content,
       contentChunks: [content],
@@ -113,7 +124,7 @@ export async function sendMessage(
   const stream = chatStream(
     content ?? "[REPLAY]",
     {
-      thread_id: THREAD_ID,
+      thread_id: chatId || THREAD_ID,
       interrupt_feedback: interruptFeedback,
       auto_accepted_plan: settings.autoAcceptedPlan,
       enable_background_investigation:
